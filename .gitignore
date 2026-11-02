@@ -1,0 +1,4 @@
+# the promo film is made with huashu-motion in its own folder; its MP4 ships with the release
+film/
+.DS_Store
+node_modules/
