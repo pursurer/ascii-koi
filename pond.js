@@ -776,25 +776,43 @@
       const dot = css(pack(P.dot)), shadeFill = P.dark ? "#000" : css(pack(mul(P.water, 0.55)));
       /* cell edges land on whole device pixels, so tiles stay crisp at any zoom */
       const snap = v => Math.round(v * dpr) / dpr, gap = cw * 0.05, spark = 0.022;
+      /*
+       * Every rectangle first, then every glyph. Each glyph stays inside its own cell, so the picture is the
+       * same as drawing cell by cell, but the GPU gets a few long runs of one kind instead of thousands of switches.
+       */
+      ctx.fillStyle = shadeFill;
+      for (let i = 0; i < shade.length; i++) {
+        if (!(shade[i] > 0)) continue;
+        const x = (i % cols) * cw, y = ((i / cols) | 0) * ch;
+        ctx.globalAlpha = shade[i]; ctx.fillRect(snap(x), snap(y), snap(x + cw) - snap(x), snap(y + ch) - snap(y));
+      }
+      let fill = -1;
+      for (const i of touched) {
+        if (!(tileA[i] > 0)) continue;
+        const x = (i % cols) * cw, y = ((i / cols) | 0) * ch, x0 = snap(x + gap), y0 = snap(y + gap);
+        if (tileRGB[i] !== fill) { fill = tileRGB[i]; ctx.fillStyle = css(fill); }
+        ctx.globalAlpha = tileA[i]; ctx.fillRect(x0, y0, snap(x + cw - gap) - x0, snap(y + ch - gap) - y0);
+      }
+      ctx.fillStyle = dot;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          const i = r * cols + c, x = c * cw, y = r * ch;
-          if (shade[i] > 0) { ctx.globalAlpha = shade[i]; ctx.fillStyle = shadeFill; ctx.fillRect(snap(x), snap(y), snap(x + cw) - snap(x), snap(y + ch) - snap(y)); }
+          const i = r * cols + c, x = c * cw + cw / 2, y = r * ch + ch / 2;
           if (tileA[i] > 0 || glyphA[i] > 0) continue;
-          if (rings.length) { const g = ringAt(x + cw / 2, y + ch / 2); if (g) { ctx.globalAlpha = g.a; ctx.fillStyle = dot; ctx.fillText(g.g, x + cw / 2, y + ch / 2); continue; } }
+          if (rings.length) { const g = ringAt(x, y); if (g) { ctx.globalAlpha = g.a; ctx.fillText(g.g, x, y); continue; } }
           const w = wake[i];
-          if (w > 0.03) { ctx.globalAlpha = Math.min(0.5, w * 1.2); ctx.fillStyle = dot; ctx.fillText(w > 0.25 ? ":" : "·", x + cw / 2, y + ch / 2); continue; }
+          if (w > 0.03) { ctx.globalAlpha = Math.min(0.5, w * 1.2); ctx.fillText(w > 0.25 ? ":" : "·", x, y); continue; }
           /* the caustic net on open water, as faint strokes that drift and fold */
-          const cl = caus(x + cw / 2, y + ch / 2);
-          if (cl > 0.8) { ctx.globalAlpha = (cl - 0.8) * 1.3; ctx.fillStyle = dot; ctx.fillText(cl > 0.94 ? "~" : cl > 0.87 ? "-" : "·", x + cw / 2, y + ch / 2); continue; }
+          const cl = caus(x, y);
+          if (cl > 0.8) { ctx.globalAlpha = (cl - 0.8) * 1.3; ctx.fillText(cl > 0.94 ? "~" : cl > 0.87 ? "-" : "·", x, y); continue; }
           const h = h2(c, r);
-          if (h < spark) { ctx.globalAlpha = 0.1 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.9 + h * 900)); ctx.fillStyle = dot; ctx.fillText("·", x + cw / 2, y + ch / 2); }
+          if (h < spark) { ctx.globalAlpha = 0.1 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.9 + h * 900)); ctx.fillText("·", x, y); }
         }
       }
+      fill = -1;
       for (const i of touched) {
-        const c = i % cols, r = (i / cols) | 0, x = c * cw, y = r * ch;
-        if (tileA[i] > 0) { ctx.globalAlpha = tileA[i]; ctx.fillStyle = css(tileRGB[i]); const x0 = snap(x + gap), y0 = snap(y + gap); ctx.fillRect(x0, y0, snap(x + cw - gap) - x0, snap(y + ch - gap) - y0); }
-        if (glyphA[i] > 0 && glyphCode[i] !== 32) { ctx.globalAlpha = glyphA[i]; ctx.fillStyle = css(glyphRGB[i]); ctx.fillText(String.fromCharCode(glyphCode[i]), x + cw / 2, y + ch / 2); }
+        if (!(glyphA[i] > 0) || glyphCode[i] === 32) continue;
+        if (glyphRGB[i] !== fill) { fill = glyphRGB[i]; ctx.fillStyle = css(fill); }
+        ctx.globalAlpha = glyphA[i]; ctx.fillText(String.fromCharCode(glyphCode[i]), (i % cols) * cw + cw / 2, ((i / cols) | 0) * ch + ch / 2);
       }
       drawFood();
       for (const p of paws) drawPaw(p);
@@ -902,6 +920,8 @@
     const NOISE = "/\\|=+*%#@", EDGE = " |/-\\";
     let cols = 0, rows = 0, cw = 6, ch = 8, cov = null, born = null, edge = null, ex = null, ey = null;
     let tone = 1, glowK = 0, ready = false, dpr = 1, glow = null, gctx = null, gimg = null;
+    /* the glyphs of one frame, drawn after the tiles */
+    const Q = { g: [], x: [], y: [], a: [], f: [] };
     async function build(now) {
       const o = spec();
       cw = o.cw; ch = o.ch; tone = o.tone || 1; glowK = o.glow || 0;
@@ -982,15 +1002,16 @@
       const snap = v => Math.round(v * dpr) / dpr, gap = cw * 0.06, G = gimg ? gimg.data : null, tick = Math.floor(now * 24);
       /* where each cell is on screen, to find the koi under it */
       const box = look.tint || look.light ? canvas.getBoundingClientRect() : null, sx = box ? box.width / (cols * cw) : 1, sy = box ? box.height / (rows * ch) : 1;
+      /* the tiles are drawn as they come and the glyphs queued, then drawn in one run (as in the pond) */
+      let n = 0;
+      const glyph = (g, x, y, a, fill) => { Q.g[n] = g; Q.x[n] = x; Q.y[n] = y; Q.a[n] = a; Q.f[n] = fill; n++; };
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
         const i = r * cols + c, v = cov[i], e = edge ? edge[i] : 0;
         if (v < (e ? 0.06 : 0.12)) continue;
         const h = h2(c + 7, r + 3), x = c / cols, age = now - born[i], settle = 0.15 + h * 0.95;
         if (age < 0) continue;
         if (age < settle) {
-          ctx.globalAlpha = tone * (0.25 + 0.5 * (age / settle));
-          ctx.fillStyle = css(pack(mixC(from, to, x)));
-          ctx.fillText(NOISE[(h2(i, tick) * NOISE.length) | 0], c * cw + cw / 2, r * ch + ch / 2);
+          glyph(NOISE[(h2(i, tick) * NOISE.length) | 0], c * cw + cw / 2, r * ch + ch / 2, tone * (0.25 + 0.5 * (age / settle)), css(pack(mixC(from, to, x))));
           continue;
         }
         const px = box ? box.left + (c + 0.5) * cw * sx : 0, py = box ? box.top + (r + 0.5) * ch * sy : 0;
@@ -1001,25 +1022,25 @@
           if (k) n += (k[j] - n) * w;
           return n + (255 - n) * 0.45 * L;
         });
-        ctx.fillStyle = css(pack(col));
-        if (e) {
-          ctx.globalAlpha = tone * Math.min(1, 0.5 + v + 0.3 * L);
-          ctx.fillText(EDGE[e], c * cw + cw / 2 + ex[i], r * ch + ch / 2 + ey[i]);
-        } else if (v >= 0.62) {
+        const fill = css(pack(col));
+        if (e) glyph(EDGE[e], c * cw + cw / 2 + ex[i], r * ch + ch / 2 + ey[i], tone * Math.min(1, 0.5 + v + 0.3 * L), fill);
+        else if (v >= 0.62) {
           /* inside a stroke: a tile like the koi's, with a glyph pressed into it in the water's colour */
           ctx.globalAlpha = tone * (0.68 + 0.27 * Math.min(1, (v - 0.62) / 0.3) + 0.1 * w + 0.12 * L);
+          ctx.fillStyle = fill;
           const x0 = snap(c * cw + gap), y0 = snap(r * ch + gap);
           ctx.fillRect(x0, y0, snap((c + 1) * cw - gap) - x0, snap((r + 1) * ch - gap) - y0);
-          ctx.globalAlpha = 0.24 * tone; ctx.fillStyle = water;
-          ctx.fillText(v > 0.9 ? (h < 0.5 ? "#" : "@") : "%", c * cw + cw / 2, r * ch + ch / 2);
-        } else {
-          ctx.globalAlpha = tone * 0.85;
-          ctx.fillText(v > 0.32 ? "+" : ":", c * cw + cw / 2, r * ch + ch / 2);
-        }
+          glyph(v > 0.9 ? (h < 0.5 ? "#" : "@") : "%", c * cw + cw / 2, r * ch + ch / 2, 0.24 * tone, water);
+        } else glyph(v > 0.32 ? "+" : ":", c * cw + cw / 2, r * ch + ch / 2, tone * 0.85, fill);
         if (G) {
           const q = i * 4, ga = gk * tone * (v >= 0.62 ? 1 : v) * (0.16 + 0.6 * w + 0.32 * L);
           G[q] = col[0]; G[q + 1] = col[1]; G[q + 2] = col[2]; G[q + 3] = Math.min(255, ga * 255);
         }
+      }
+      let fill = "";
+      for (let j = 0; j < n; j++) {
+        if (Q.f[j] !== fill) { fill = Q.f[j]; ctx.fillStyle = fill; }
+        ctx.globalAlpha = Q.a[j]; ctx.fillText(Q.g[j], Q.x[j], Q.y[j]);
       }
       ctx.globalAlpha = 1;
       if (glow) gctx.putImageData(gimg, 0, 0);
