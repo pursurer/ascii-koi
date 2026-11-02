@@ -843,11 +843,13 @@
     }
 
     /*
-     * Live mode: one animation frame. The pond always moves at the display's
-     * rate; if drawing a frame takes too long on this machine, it draws every
-     * other frame instead, so the page stays responsive.
+     * Live mode: one animation frame. The pond moves at the display's rate and
+     * draws a frame at most every 12 ms: a 60 Hz screen gets every frame, a
+     * 120 Hz screen every other one. A slow machine simply gets fewer frames
+     * from the browser; the time a draw call takes is no guide, as it includes
+     * waiting for the GPU to finish the frame before.
      */
-    let last = 0, running = false, dirty = true, cost = 0, skip = false, odd = false;
+    let last = 0, drawn = 0, running = false, dirty = true;
     function frame(now) {
       if (!running) return;
       requestAnimationFrame(frame);
@@ -856,13 +858,10 @@
       const moving = !paused && !reduce;
       if (moving && dt > 0) advance(dt);
       if (!moving && !dirty) return;
-      odd = !odd;
-      if (skip && odd && !dirty) return;
+      if (now - drawn < 12 && !dirty) return;
       dirty = false;
-      const a = performance.now();
+      drawn = now;
       render();
-      cost = cost * 0.95 + (performance.now() - a) * 0.05;
-      skip = skip ? cost > 9 : cost > 12;
     }
 
     return {
