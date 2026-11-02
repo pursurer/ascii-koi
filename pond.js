@@ -918,6 +918,8 @@
       const data = m.getImageData(0, 0, mw, mh).data;
       const s = Math.min(1, o.maxW / mw);
       const nc = Math.ceil(mw * s / cw), nr = Math.ceil(mh * s / ch);
+      /* a window with no width yet (a hidden or prerendered tab): nothing to draw until it is resized */
+      if (!nc || !nr) { ready = false; return; }
       const next = new Float32Array(nc * nr);
       for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) {
         let a = 0;
