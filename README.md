@@ -52,6 +52,22 @@ Any other browser: set your home page to **https://pursurer.github.io/ascii-koi/
 - **Deterministic.** For a recording the simulation steps forward in fixed 1/60 s steps, so the same events always give the same frame. The film above was rendered frame by frame from this exact engine with [huashu-motion](https://github.com/alchaincyf/huashu-motion); nothing in it is mocked up.
 - **Small.** Vanilla JavaScript, no build step, no dependencies: `pond.js` (the engine) and `app.js` (the page) are about 1,200 lines together, plus two web fonts (37 KB).
 
+<!-- family:start -->
+## The ASCII Koi family
+
+Small things that share one look: koi drawn in text characters, letters that take a koi's colours as it swims under them, a black cat in character tiles, and black water (`#0d1315` water, `#ebe6dc` ink, `#e8784f` accent).
+
+| Project | What it is |
+|---|---|
+| **ASCII Koi** (this repository) | The pond itself: your new tab, under a clock made of the same characters. Its `pond.js` is the engine the others reuse |
+| Codex Koi (coming soon) | The pond behind the Codex desktop app's new-chat page |
+| [Claude Koi](https://github.com/pursurer/claude-koi) | The pond in a pane beside Claude Code, opened with `/koi` |
+| [Codex ASCII Pets](https://github.com/pursurer/codex-ascii-pets) | The koi and the black cat as Codex pets |
+| [One Page is all you need](https://github.com/pursurer/one-page-is-all-you-need) | Where the koi and the cat began: a one-page morning briefing that an n8n agent writes every day |
+
+Every repository in the family has the topic [`ascii-koi`](https://github.com/topics/ascii-koi).
+<!-- family:end -->
+
 ## Credits
 
 - Technique informed by [stackedlol/ascii-sharks](https://github.com/stackedlol/ascii-sharks) (MIT) and [daoho.dev](https://daoho.dev); all code here is written for this project.
