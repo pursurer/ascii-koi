@@ -4,7 +4,7 @@
 //   node scripts/family.mjs --check   only report, exit 1 if one is out of date
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
-const REPOS = ["ascii-koi", "codex-koi", "claude-koi", "codex-ascii-pets", "one-page-is-all-you-need"];
+const REPOS = ["ascii-koi", "codex-koi", "one-page-is-all-you-need"];
 const START = "<!-- family:start -->", END = "<!-- family:end -->";
 const check = process.argv.includes("--check");
 const block = readFileSync(new URL("../docs/family.md", import.meta.url), "utf8").trim();

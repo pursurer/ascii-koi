@@ -31,7 +31,7 @@ MIT.
 ```
 
 - **Family block.** Keep the two markers. `node scripts/family.mjs` (in ascii-koi) fills the block from `docs/family.md` in every family repository checked out next to ascii-koi; `--check` only reports. Change the family table in `docs/family.md` only.
-- **Repository name.** The product's own name in kebab case: `codex-koi`, `claude-koi`.
+- **Repository name.** The product's own name in kebab case: `codex-koi`, `one-page-is-all-you-need`.
 - **Description.** One plain sentence about what the user gets, no emoji.
 - **Topics.** Always `ascii-koi` and `ascii-art`, then what the product runs on, for example `codex`, `claude-code`, `n8n`.
 - **Media.** Rendered from the real code, never mocked up. Keep the black water (`#0d1315`) as the background.
