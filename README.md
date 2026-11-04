@@ -50,6 +50,7 @@ Any other browser: set your home page to **https://pursurer.github.io/ascii-koi/
 - **Koi.** Each fish is a chain of ten spine nodes trailing its head, with a travelling body wave. Every character cell is sampled against the nearest point on the spine (plus sub-samples for soft edges), classified as body, fin, eye or barbel, coloured by the fish's own markings (kohaku, sanke, tancho) and shaded by a light from the upper left: lit skin gets sparse glyphs, shadowed skin dense ones. Each koi casts a shadow on the pond floor and leaves a wake.
 - **Water.** Two drifting noise fields; where they meet, light gathers in a thin moving net of `· - ~`, and the scales glint `*` where it crosses a back.
 - **Deterministic.** For a recording the simulation steps forward in fixed 1/60 s steps, so the same events always give the same frame. The film above was rendered frame by frame from this exact engine with [huashu-motion](https://github.com/alchaincyf/huashu-motion); nothing in it is mocked up.
+- **More koi elsewhere.** `createPond({ most })` raises the cap of fourteen for a host that wants a fuller shoal; Codex Koi uses 24.
 - **Small.** Vanilla JavaScript, no build step, no dependencies: `pond.js` (the engine) and `app.js` (the page) are about 1,200 lines together, plus two web fonts (37 KB).
 
 <!-- family:start -->
